@@ -73,7 +73,7 @@ void importTrainFiles() {
 	fclose(fin);
 
     if (train_file == "")
-        fin = fopen((inPath + "train2id.txt").c_str(), "r");
+        fin = fopen((inPath + "KGE_train2id.txt").c_str(), "r");
     else
         fin = fopen(train_file.c_str(), "r");
 	tmp = fscanf(fin, "%ld", &trainTotal);
@@ -184,15 +184,15 @@ void importTestFiles() {
 
     FILE* f_kb1, * f_kb2, * f_kb3;
     if (train_file == "")
-        f_kb2 = fopen((inPath + "train2id.txt").c_str(), "r");
+        f_kb2 = fopen((inPath + "KGE_train2id.txt").c_str(), "r");
     else
         f_kb2 = fopen(train_file.c_str(), "r");
     if (test_file == "")
-        f_kb1 = fopen((inPath + "test2id.txt").c_str(), "r");
+        f_kb1 = fopen((inPath + "Fact_train2id.txt").c_str(), "r");
     else
         f_kb1 = fopen(test_file.c_str(), "r");
     if (valid_file == "")
-        f_kb3 = fopen((inPath + "valid2id.txt").c_str(), "r");
+        f_kb3 = fopen((inPath + "Fact_train2id.txt").c_str(), "r");
     else
         f_kb3 = fopen(valid_file.c_str(), "r");
     tmp = fscanf(f_kb1, "%ld", &testTotal);
