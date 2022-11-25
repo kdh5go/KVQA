@@ -5,145 +5,265 @@ from OpenKE.module.model import TransE
 from OpenKE.module.loss import MarginLoss
 from OpenKE.module.strategy import NegativeSampling
 from OpenKE.data import TrainDataLoader, TestDataLoader
+from konlpy.tag import Okt
 
 
-def extract_QA(annotations):
-   for anno in annotations:
-       question = anno['question']
-       answer = anno['answer']
-       
+def extract_QA(annotations, word_count, ans_count):
+	okt = Okt()
+	q_tokens = []
+	answers = []
+	for anno in annotations:
+		question = anno['question']
+		answer = anno['answer']
+		# triple = anno['fact']['triple']
+		# triple = triple.split(',')
+		# e1, r = triple[0], triple[1]
+		# e2 = ''
+		# answer_entNum = 1
+		# for i in range(len(triple)-3):
+		# 	e2 += (triple[i + 2].strip() + '/')
+		# 	answer_entNum += 1
+		# e2 += triple[-1].strip()
+
+		token_Q = okt.pos(question, norm=True, stem=True)
+		tokens = []
+		for t_q in token_Q:
+			if not t_q[1] in ['Punctuation', 'KoreanParticle']:
+				if not t_q[0] in word_count:
+					word_count[t_q[0]] = 1
+				else:
+					word_count[t_q[0]] += 1
+				tokens.append(t_q[0])
+		q_tokens.append(tokens)
+		answer = answer.split(',')
+		ans = ''
+		for i in range(len(ans)-1):
+			ans += (ans[i].strip() + '/')			
+		ans += answer[-1].strip()
+		answer = ans
+		if not answer in ans_count:
+			ans_count[answer] = 1
+		else:
+			ans_count[answer] += 1
+		# if e2 != answer and triple[1] != '인접':
+		# 	print(e2, answer)
+		# 	a = 1
+		answers.append(answer)
+	return q_tokens, answers
+
 
 def extract_facts_in_Triple(annotations, ent_count, rel_count):
-    facts = [] 
-    for anno in annotations:
-        triple = anno['triple']
-        e1, r, e2 = triple[0], triple[1], triple[2]            
-        elem = e2.split(',')
-        e2 = ''            
-        for i in range(len(elem) - 1):
-            e2 += (elem[i].strip() + '/')           
-        
-        e2 += elem[-1].strip()         
-        facts.append([e1, e2, r])
-        for e in [e1, e2]:                        
-            if not e in ent_count:
-                ent_count[e] = 1
-            else:
-                ent_count[e] += 1
-        if not r in rel_count:
-            rel_count[r] = 1
-        else:
-            rel_count[r] += 1
-    return facts
+	facts = []
+	for anno in annotations:
+		triple = anno['triple']
+		e1, r, e2 = triple[0], triple[1], triple[2]
+		elem = e2.split(',')
+		e2 = ''
+		for i in range(len(elem) - 1):
+			e2 += (elem[i].strip() + '/')
+
+		e2 += elem[-1].strip()
+		facts.append([e1, e2, r])
+		for e in [e1, e2]:
+			if not e in ent_count:
+				ent_count[e] = 1
+			else:
+				ent_count[e] += 1
+		if not r in rel_count:
+			rel_count[r] = 1
+		else:
+			rel_count[r] += 1
+	return facts
+
 
 def extract_facts_in_QA(annotations, ent_count, rel_count):
-    facts = []        
-    for anno in annotations:
-        triple = anno['fact']['triple']
-        triple = triple.split(',')
-        e1, r = triple[0], triple[1]
-        e2 = ''
-        answer_entNum = 1
-        for i in range(len(triple)-3):
-            e2 += (triple[i + 2].strip() + '/')
-            answer_entNum += 1
-        e2 += triple[-1].strip()               
-        facts.append([e1, e2, r])    
-        for e in [e1, e2]:                        
-            if not e in ent_count:
-                ent_count[e] = 1
-            else:
-                ent_count[e] += 1
-        if not r in rel_count:
-            rel_count[r] = 1
-        else:
-            rel_count[r] += 1
-    return facts
+	facts = []
+	for anno in annotations:
+		triple = anno['fact']['triple']
+		triple = triple.split(',')
+		e1, r = triple[0], triple[1]
+		e2 = ''
+		answer_entNum = 1
+		for i in range(len(triple)-3):
+			e2 += (triple[i + 2].strip() + '/')
+			answer_entNum += 1
+		e2 += triple[-1].strip()
+		facts.append([e1, e2, r])
+		for e in [e1, e2]:
+			if not e in ent_count:
+				ent_count[e] = 1
+			else:
+				ent_count[e] += 1
+		if not r in rel_count:
+			rel_count[r] = 1
+		else:
+			rel_count[r] += 1
+	return facts
 
 
 def load_facts(data_root):
-    fact_set = {'Triple': [], 'QA':[]}
+	fact_set = {'Triple': [], 'QA': []}
+	qa_set = {'question_tokens': [], 'answer': []}
+
+	extract_facts = {'QA': extract_facts_in_QA,
+					 'Triple': extract_facts_in_Triple}
+	ent_count = dict()
+	rel_count = dict()
+	word_count = dict()
+	ans_count = dict()
+
+	for data_type in ['QA', 'Triple']:
+		regions = os.listdir(os.path.join(data_root, data_type))
+		for region in regions:
+			if '.zip' in region:
+				continue
+			states = os.listdir(os.path.join(data_root, data_type, region))
+			for state in states:
+				types = os.listdir(os.path.join(
+					data_root, data_type, region, state))
+				for ty in types:
+					files = os.listdir(os.path.join(
+						data_root, data_type, region, state, ty))
+					for fn in files:
+						filepath = os.path.join(
+							data_root, data_type, region, state, ty, fn)
+						with open(filepath, 'r', encoding='utf-8-sig') as f:
+							data = json.load(f)
+
+						if data_type == 'QA':
+							annotations = data['annotations']['question']
+							q_tokens, answers = extract_QA(
+								annotations, word_count, ans_count)							
+							for q, a in zip(q_tokens, answers):
+								qa_set['question_tokens'].append(q)
+								qa_set['answer'].append(a)
+						else:
+							annotations = data['triples']
+
+						facts = extract_facts[data_type](
+							annotations, ent_count, rel_count)
+						for fact in facts:
+							fact_set[data_type].append(fact)
+
+	ent_count = {k: v for k, v in sorted(
+		ent_count.items(), key=lambda item: -item[1])}
+	rel_count = {k: v for k, v in sorted(
+		rel_count.items(), key=lambda item: -item[1])}
+	word_count = {k: v for k, v in sorted(
+		word_count.items(), key=lambda item: -item[1])}
+	ans_count = {k: v for k, v in sorted(
+		ans_count.items(), key=lambda item: -item[1])}
+
+	return fact_set, qa_set, ent_count, rel_count, word_count, ans_count
+
+
+def normalize_count(count):
+	sum = 0
+	dist = dict()
+	for wn in count:
+		sum += count[wn]
+	for wn in count:
+		dist[wn] = count[wn] / sum
+	return dist
+
+
+def make_dict_files(output_dir, fact_set, qa_set, ent_count, rel_count, word_count, ans_count):
+	entity2id = dict()
+	out_fn = os.path.join(output_dir, 'entity2id.txt')
+	with open(out_fn, 'w') as f:
+		f.write('{}\n'.format(len(ent_count)))
+		for i, k in enumerate(ent_count):
+			f.write('{}\t{}\n'.format(k, i))
+			entity2id[k] = i
+
+	relation2id = dict()
+	out_fn = os.path.join(output_dir, 'relation2id.txt')
+	with open(out_fn, 'w') as f:
+		f.write('{}\n'.format(len(rel_count)))
+		for i, k in enumerate(rel_count):
+			f.write('{}\t{}\n'.format(k, i))
+			relation2id[k] = i
+   
+	answer2id = dict()
+	out_fn = os.path.join(output_dir, 'answer2id.txt')
+	with open(out_fn, 'w') as f:
+		f.write('{}\n'.format(len(ans_count)))
+		for i, k in enumerate(ans_count):
+			f.write('{}\t{}\n'.format(k, i))
+			answer2id[k] = i
+	
+	word2id = dict()
+	out_fn = os.path.join(output_dir, 'word2id.txt')
+	with open(out_fn, 'w') as f:
+		f.write('{}\n'.format(len(word_count) + 1))
+		f.write('{}\t{}\n'.format(' ', 0))
+		word2id[' '] = 0
+		for i, k in enumerate(word_count):
+			f.write('{}\t{}\n'.format(k, i + 1))
+			word2id[k] = i + 1
+
+	out_fn = os.path.join(output_dir, 'KGE_train2id.txt')
+	with open(out_fn, 'w') as f:
+		num = len(fact_set['Triple'])
+		print('KGE train fact num :', num)
+		f.write('{}\n'.format(num))
+		for fact in fact_set['Triple']:
+			f.write('{}\t{}\t{}\n'.format(
+				entity2id[fact[0]], entity2id[fact[1]], relation2id[fact[2]]))
+
+	out_fn = os.path.join(output_dir, 'Fact_train2id.txt')
+	with open(out_fn, 'w') as f:
+		num = len(fact_set['QA'])
+		print('QA train fact num :', num)
+		f.write('{}\n'.format(num))
+		for fact in fact_set['QA']:
+			f.write('{}\t{}\t{}\n'.format(
+				entity2id[fact[0]], entity2id[fact[1]], relation2id[fact[2]]))
+
+	q_tokens = qa_set['question_tokens']
+	max_len_question = 0
+	for q_t in q_tokens:
+		if len(q_t) > max_len_question:
+			max_len_question = len(q_t)
+	print('max_len_question', max_len_question)
+	out_fn = os.path.join(output_dir, 'Question_train2id.txt')
+	with open(out_fn, 'w') as f:
+		num = len(q_tokens)
+		print('Question num :', num)
+		f.write('{}\n'.format(num))
+		for q_t in q_tokens:
+			txt = ''
+			for i, q in enumerate(q_t):
+				if i < len(q_t) - 1:
+					txt += str(word2id[q]) + ','
+				else:
+					txt += str(word2id[q]) + '\n'
+			f.write(txt)
+	
+	answer = qa_set['answer']
+	out_fn = os.path.join(output_dir, 'Answer_train2id.txt')
+	with open(out_fn, 'w') as f:
+		num = len(answer)
+		print('Answer num :', num)
+		f.write('{}\n'.format(num))
+		for ans in answer:
+			if ans in answer2id:       
+				f.write('{}\n'.format(answer2id[ans]))
+			else:
+				print('error', ans)
+				for k in answer2id.keys():
+					if k in ans or ans in k:
+						print(k)
     
-    extract_facts = {'QA': extract_facts_in_QA,
-                    'Triple': extract_facts_in_Triple}    
-    ent_count = dict()
-    rel_count = dict()
-    # ans_count = dict()
-    
-    for data_type in ['QA', 'Triple']:    
-        regions = os.listdir(os.path.join(data_root, data_type))    
-        for region in regions:
-            if '.zip' in region:
-                continue 
-            states = os.listdir(os.path.join(data_root, data_type, region))
-            for state in states:
-                types = os.listdir(os.path.join(data_root, data_type, region, state))
-                for ty in types:
-                    files = os.listdir(os.path.join(data_root, data_type, region, state, ty))
-                    for fn in files:
-                        filepath = os.path.join(data_root, data_type, region, state, ty, fn)
-                        with open(filepath, 'r', encoding='utf-8-sig') as f:
-                            data = json.load(f)
-                            
-                        if data_type == 'QA':
-                            annotations = data['annotations']['question']
-                        else:
-                            annotations = data['triples']
-                        
-                        facts = extract_facts[data_type](annotations, ent_count, rel_count)
-                        for fact in facts:
-                            fact_set[data_type].append(fact)
-                            
-                            
-    ent_count = {k: v for k, v in sorted(ent_count.items(), key=lambda item: -item[1])}
-    rel_count = {k: v for k, v in sorted(rel_count.items(), key=lambda item: -item[1])}
-    # ans_count = {k: v for k, v in sorted(ans_count.items(), key=lambda item: item[0])}
-    
-    return fact_set, ent_count, rel_count
-
-
-def normalize_count(count):    
-    sum = 0
-    dist = dict()
-    for wn in count:
-        sum += count[wn]
-    for wn in count:
-        dist[wn] = count[wn] / sum        
-    return dist
-
-
-def make_dict_files(output_dir, fact_set, ent_count, rel_count):
-    entity2id = dict()
-    out_fn = os.path.join(output_dir, 'entity2id.txt')
-    with open(out_fn, 'w') as f:
-        f.write('{}\n'.format(len(ent_count)))    
-        for i, k in enumerate(ent_count):
-            f.write('{}\t{}\n'.format(k, i))
-            entity2id[k] = i
-
-    relation2id = dict()
-    out_fn = os.path.join(output_dir, 'relation2id.txt')
-    with open(out_fn, 'w') as f:
-        f.write('{}\n'.format(len(rel_count)))    
-        for i, k in enumerate(rel_count):
-            f.write('{}\t{}\n'.format(k, i))
-            relation2id[k] = i
-
-    out_fn = os.path.join(output_dir, 'KGE_train2id.txt')
-    with open(out_fn, 'w') as f:
-        num = len(fact_set['Triple'])
-        print('KGE train fact num :', num)
-        f.write('{}\n'.format(num))    
-        for fact in fact_set['Triple']:
-            f.write('{}\t{}\t{}\n'.format(entity2id[fact[0]], entity2id[fact[1]], relation2id[fact[2]]))
-
-    out_fn = os.path.join(output_dir, 'Fact_train2id.txt')
-    with open(out_fn, 'w') as f:
-        num = len(fact_set['QA'])
-        print('QA train fact num :', num)
-        f.write('{}\n'.format(num))    
-        for fact in fact_set['QA']:
-            f.write('{}\t{}\t{}\n'.format(entity2id[fact[0]], entity2id[fact[1]], relation2id[fact[2]]))  
+	# out_fn = os.path.join(output_dir, 'Question_train2id.txt')
+	# with open(out_fn, 'w') as f:
+	# 	num = len(q_tokens)
+	# 	print('Question num :', num)
+	# 	f.write('{}\n'.format(num))
+	# 	for q_t in q_tokens:
+	# 		for	
+	# 		f.write('{}\t{}\t{}\n'.format(
+	# 			entity2id[fact[0]], entity2id[fact[1]], relation2id[fact[2]]))
 
 
 def generate_addictive_files(output_dir):
@@ -159,13 +279,13 @@ def generate_addictive_files(output_dir):
 	tot = (int)(triple.readline())
 	for i in range(tot):
 		content = triple.readline()
-		h,t,r = content.strip().split()
-		if not (h,r) in lef:
-			lef[(h,r)] = []
-		if not (r,t) in rig:
-			rig[(r,t)] = []
-		lef[(h,r)].append(t)
-		rig[(r,t)].append(h)
+		h, t, r = content.strip().split()
+		if not (h, r) in lef:
+			lef[(h, r)] = []
+		if not (r, t) in rig:
+			rig[(r, t)] = []
+		lef[(h, r)].append(t)
+		rig[(r, t)].append(h)
 		if not r in rellef:
 			rellef[r] = {}
 		if not r in relrig:
@@ -176,13 +296,13 @@ def generate_addictive_files(output_dir):
 	tot = (int)(valid.readline())
 	for i in range(tot):
 		content = valid.readline()
-		h,t,r = content.strip().split()
-		if not (h,r) in lef:
-			lef[(h,r)] = []
-		if not (r,t) in rig:
-			rig[(r,t)] = []
-		lef[(h,r)].append(t)
-		rig[(r,t)].append(h)
+		h, t, r = content.strip().split()
+		if not (h, r) in lef:
+			lef[(h, r)] = []
+		if not (r, t) in rig:
+			rig[(r, t)] = []
+		lef[(h, r)].append(t)
+		rig[(r, t)].append(h)
 		if not r in rellef:
 			rellef[r] = {}
 		if not r in relrig:
@@ -193,13 +313,13 @@ def generate_addictive_files(output_dir):
 	tot = (int)(test.readline())
 	for i in range(tot):
 		content = test.readline()
-		h,t,r = content.strip().split()
-		if not (h,r) in lef:
-			lef[(h,r)] = []
-		if not (r,t) in rig:
-			rig[(r,t)] = []
-		lef[(h,r)].append(t)
-		rig[(r,t)].append(h)
+		h, t, r = content.strip().split()
+		if not (h, r) in lef:
+			lef[(h, r)] = []
+		if not (r, t) in rig:
+			rig[(r, t)] = []
+		lef[(h, r)].append(t)
+		rig[(r, t)].append(h)
 		if not r in rellef:
 			rellef[r] = {}
 		if not r in relrig:
@@ -212,15 +332,15 @@ def generate_addictive_files(output_dir):
 	triple.close()
 
 	f = open(os.path.join(output_dir, "type_constrain.txt"), "w")
-	f.write("%d\n"%(len(rellef)))
+	f.write("%d\n" % (len(rellef)))
 	for i in rellef:
-		f.write("%s\t%d"%(i,len(rellef[i])))
+		f.write("%s\t%d" % (i, len(rellef[i])))
 		for j in rellef[i]:
-			f.write("\t%s"%(j))
+			f.write("\t%s" % (j))
 		f.write("\n")
-		f.write("%s\t%d"%(i,len(relrig[i])))
+		f.write("%s\t%d" % (i, len(relrig[i])))
 		for j in relrig[i]:
-			f.write("\t%s"%(j))
+			f.write("\t%s" % (j))
 		f.write("\n")
 	f.close()
 
@@ -265,7 +385,6 @@ def generate_addictive_files(output_dir):
 	# 		snn+=1
 	# f.close()
 
-
 	# f = open(os.path.join(output_dir, "Fact_train2id.txt"), "r")
 	# f11 = open(os.path.join(output_dir, "1-1.txt"), "w")
 	# f1n = open(os.path.join(output_dir, "1-n.txt"), "w")
@@ -302,35 +421,36 @@ def generate_addictive_files(output_dir):
 	# fn1.close()
 	# fnn.close()
 
+
 def train_KGE_transe(datapath, ckptpath):
-    # dataloader for training
-    train_dataloader = TrainDataLoader(
-        in_path = datapath + '/', 
-        nbatches = 512,
-        threads = 8, 
-        sampling_mode = "normal", 
-        bern_flag = 1, 
-        filter_flag = 1, 
-        neg_ent = 25,
-        neg_rel = 0)
+	# dataloader for training
+	train_dataloader = TrainDataLoader(
+		in_path=datapath + '/',
+		nbatches=512,
+		threads=8,
+		sampling_mode="normal",
+		bern_flag=1,
+		filter_flag=1,
+		neg_ent=25,
+		neg_rel=0)
 
-    # define the model
-    transe = TransE(
-        ent_tot = train_dataloader.get_ent_tot(),
-        rel_tot = train_dataloader.get_rel_tot(),
-        dim = 300, 
-        p_norm = 1, 
-        norm_flag = True)
+	# define the model
+	transe = TransE(
+		ent_tot=train_dataloader.get_ent_tot(),
+		rel_tot=train_dataloader.get_rel_tot(),
+		dim=300,
+		p_norm=1,
+		norm_flag=True)
 
+	# define the loss function
+	model = NegativeSampling(
+		model=transe,
+		loss=MarginLoss(margin=5.0),
+		batch_size=train_dataloader.get_batch_size()
+	)
 
-    # define the loss function
-    model = NegativeSampling(
-        model = transe, 
-        loss = MarginLoss(margin = 5.0),
-        batch_size = train_dataloader.get_batch_size()
-    )
-
-    # train the model
-    trainer = Trainer(model = model, data_loader = train_dataloader, train_times = 1000, alpha = 1.0, use_gpu = True)
-    trainer.run()
-    transe.save_checkpoint(ckptpath)
+	# train the model
+	trainer = Trainer(model=model, data_loader=train_dataloader,
+					  train_times=1000, alpha=1.0, use_gpu=True)
+	trainer.run()
+	transe.save_checkpoint(ckptpath)
