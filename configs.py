@@ -9,123 +9,80 @@ import pdb
 
 class cfg():
     def __init__(self):
-        
+
+        # log settings
+        self.exp_name = 'mlp'
+        self.exp_id = ''
+        self.log_dir = './logs'
+        self.no_tensorboard = False
+        self.random_seed = 1234
+
+        # common settings
+        self.now_test = False
+        self.space_name = 'answer'
+        self.model_save_path = '../KVQA_train'
+        self.save_model = True
+
+        # path settings
         self.kg_data_root = '/workspace/datasets/KVQA'
         self.qa_data_root = '/workspace/datasets/QA'
         self.data_output_dir = './data/KVQA'
-        self.kge_ckpt = './data/KVQA/transe.ckpt'
+        self.kge_ckpt = './data/KVQA/transe_300.ckpt'
+
+        # embedding settings
+        self.KG_feature_dim = 300
+        self.visual_feature_dim = 300  # POI --> KGE
+        # self.embedding_size = 512  # embedding dimensionality
+        self.embedding_size = 300  # embedding dimensionality
+        self.hidden_size = 2 * self.embedding_size  # hidden embedding
+
+        # model settings
+        self.fusion_model = 'MLP'
+        self.freeze_w2v = False
+        self.answer_model = 'MLP'
+        self.answer_model_rel = 'CLS'
+        self.answer_model_ans = 'MLP'
+        self.ans_net_lay = 0
 
         self.KVQA = edict()
         self.KVQA.fact_path = './data/KVQA/Fact_train2id.txt'
         self.KVQA.question_path = './data/KVQA/Question_train2id.txt'
         self.KVQA.answer_path = './data/KVQA/Answer_train2id.txt'
+        self.KVQA.word2id_path = './data/KVQA/word2id.txt'
+        self.KVQA.answer2id_path = './data/KVQA/answer2id.txt'
+        self.KVQA.KG2id_path = './data/KVQA/KGE_train2id.txt'
+        self.KVQA.entity2id_path = './data/KVQA/entity2id.txt'
         self.KVQA.question_max_length = 13
-        
 
-        # self.fusion_model_path = ""
-        # self.answer_net_path = ""
+        # train params
+        self.TRAIN = edict()
+        self.TRAIN.epochs = 6000
+        self.TRAIN.batch_size = 512  # 128
+        self.TRAIN.lr = 1e-3  # default Adam lr 1e-3
+        self.TRAIN.CosineAnnealing_Tmax = 50
+        self.TRAIN.CosineAnnealing_Tmult = 2
+        self.TRAIN.lr_decay_step = 30
+        self.TRAIN.lr_decay_rate = .90
+        self.TRAIN.data_workers = 8  # 10
+        self.loss_temperature = 0.001
 
-        # self.joint_test_way = 0
+        self.patience = 30
 
-        # self.this_dir = osp.dirname(__file__)
-        # self.data_root = osp.abspath(osp.join(self.this_dir, '..', '..', 'data', 'KG_VQA'))
-        # self.this_dir = osp.dirname(__file__)
-        # self.project_root = osp.abspath(osp.join(self.this_dir, '..'))
-        # self.method_choice = "KG"
-        # self.ans_fusion = 'RNN_concate'
-        # self.fusion_model = ''
-        # self.requires_grad = 1
-        # self.bert_dim = 1024
-        # self.KGE = "TransE"
-        # self.KGE_init = None  # none or w2v
-        # self.glimpse = 4
-        # self.ans_feature_len = 0
-        # self.patience = 30
-        # self.v_dim = 2048
-
-        # self.FVQA = edict()
-
-        # # FVQA params
-
-        # self.FVQA.max_ans = 500
-        # self.FVQA.data_choice = "0"
-
-        # self.FVQA.entity_num = "all"
-        # self.FVQA.data_path = osp.join(self.data_root, "fvqa")
-
-        # self.FVQA.exp_data_path = osp.join(self.FVQA.data_path, "exp_data")
-        # self.FVQA.common_data_path = osp.join(self.FVQA.exp_data_path, "common_data")
-        # self.FVQA.test_data_path = osp.join(self.FVQA.exp_data_path, "test_data")
-        # self.FVQA.train_data_path = osp.join(self.FVQA.exp_data_path, "train_data")
-        # self.FVQA.seen_train_data_path = osp.join(self.FVQA.exp_data_path, "train_seen_data")
-        # self.FVQA.unseen_test_data_path = osp.join(self.FVQA.exp_data_path, "test_unseen_data")
-        # self.FVQA.seen_test_data_path = osp.join(self.FVQA.exp_data_path, "test_seen_data")
-        # self.FVQA.model_save_path = osp.join(self.FVQA.data_path, "model_save")
-        # self.FVQA.runs_path = osp.join(self.FVQA.data_path, "model_save")
-
-        # self.FVQA.qa_path = self.FVQA.exp_data_path
-        # self.FVQA.feature_path = osp.join(self.FVQA.common_data_path, 'fvqa-resnet-14x14.h5')
-        # self.FVQA.answer_vocab_path = osp.join(
-        #     self.FVQA.common_data_path, 'answer.vocab.fvqa.' + str(self.FVQA.max_ans) + '.json')
-        # self.FVQA.fact_vocab_path = osp.join(self.FVQA.common_data_path, 'answer.vocab.fvqa.fact.500.json')
-        # self.FVQA.relation_vocab_path = osp.join(self.FVQA.common_data_path, 'answer.vocab.fvqa.relation.500.json')
-
-        # self.FVQA.fact_relation_to_ans_path = osp.join(self.FVQA.common_data_path, "fact_relation_dict.data")
-        # self.FVQA.img_path = osp.join(self.FVQA.qa_path, 'images')
-
-        # self.FVQA.kg_path = osp.join(self.FVQA.common_data_path, "KG_embedding")
-        # self.FVQA.gae_path = osp.join(self.FVQA.common_data_path, "GAE_embedding")
-        # self.FVQA.bert_path = osp.join(self.FVQA.common_data_path, "BERT_embedding")
-
-        # self.FVQA.gae_node_num = 3463
-        # self.FVQA.gae_init = "w2v"  # or w2v
-        # # 有问题
-        # # self.FVQA.qa = 'train2014'
-        # # self.FVQA.task = 'OpenEnded'
-        # # self.FVQA.dataset = 'mscoco'
-
-        # # self.dataset = self.FVQA
-
-        # self.cache_path = osp.join(self.data_root, '.cache')
-        # self.output_path = self.FVQA.model_save_path
-        # self.embedding_size = 1024  # embedding dimensionality
-        # self.hidden_size = 2 * self.embedding_size  # hidden embedding
-        # # a joint question vocab across all dataset
-        # self.question_vocab_path = osp.join(self.FVQA.common_data_path, 'question.vocab.json')  # 修改这里之后所有的预存文件（pt）都要删除
-
-        # # preprocess config
-        # self.image_size = 448
-        # self.output_size = self.image_size // 32
-        # self.preprocess_batch_size = 100  # 64
-        # self.output_features = 2048
-        # self.central_fraction = 0.875
-
-        # # Train params
-        # self.TRAIN = edict()
-        # self.TRAIN.epochs = 600
-        # self.TRAIN.batch_size = 128  # 128
-        # self.TRAIN.lr = 5e-4  # default Adam lr 1e-3
-        # self.TRAIN.lr_decay_step = 3
-        # self.TRAIN.lr_decay_rate = .70
-
-        # # self.TRAIN.data_workers = 20
-        # self.TRAIN.data_workers = 8  # 10
-        # self.TRAIN.answer_batch_size = self.FVQA.max_ans  # batch size for answer network
-        # self.TRAIN.max_negative_answer = self.FVQA.max_ans  # max negative answers to sample
-
-        # # Test params
-        # self.TEST = edict()
-        # self.TEST.batch_size = 128
-        # self.TEST.max_answer_index = self.FVQA.max_ans  # max answer index for computing acc   853
+        # test params
+        self.kg_weight = 0
 
     def get_args(self):
         parser = argparse.ArgumentParser()
-        # parser.add_argument('--gpu_id', default=1, type=int)
+        parser.add_argument('--gpu_id', default=0, type=int)
+        parser.add_argument("--ans_net_lay", default=0,
+                            type=int, choices=[0, 1, 2])
+        parser.add_argument('--space_name', default='relation',
+                            choices=['relation', 'answer'])
         # parser.add_argument('--finetune', action='store_true')
         # parser.add_argument('--batch_size', default=128, type=int)
         # parser.add_argument('--max_ans', default=500, type=int)  # 3000 300##
-        # parser.add_argument('--loss_temperature', default=0.01, type=float)        
-        # parser.add_argument('--answer_embedding', default='MLP')        
+        # parser.add_argument('--loss_temperature', default=0.01, type=float)
+        # parser.add_argument('--answer_embedding', default='MLP')
         # parser.add_argument('--embedding_size', default=1024, choices=[1024, 300, 512], type=int)
         # parser.add_argument('--epoch', default=800, type=int)
         # # choice model
@@ -138,7 +95,7 @@ class cfg():
         #                     choices=['RNN_concate', 'GATE_attention', 'GATE', 'RNN_GATE_attention', 'Simple_concate'])
         # # KG situation
         # parser.add_argument('--KGE', default='TransE',
-        #                     choices=['TransE', 'ComplEx', "TransR", "DistMult"])        
+        #                     choices=['TransE', 'ComplEx', "TransR", "DistMult"])
         # parser.add_argument('--entity_num', default="all", choices=['all', '4302'])
 
         # parser.add_argument('--data_choice', default='0', choices=['0', '1', '2', '3', '4'])
@@ -150,7 +107,7 @@ class cfg():
         # parser.add_argument("--exp_id", default="", type=str, help="Experiment ID")
         # parser.add_argument("--random_seed", default=4567, type=int)
         # parser.add_argument("--freeze_w2v", default=1, type=int, choices=[0, 1])
-        # parser.add_argument("--ans_net_lay", default=0, type=int, choices=[0, 1, 2])        
+
         # parser.add_argument("--matching_space", default='answer', type=str, choices=['answer', 'poi', 'relation'])
 
         # parser.add_argument("--now_test", default=0, type=int, choices=[0, 1])
@@ -164,8 +121,12 @@ class cfg():
         args = parser.parse_args()
         return args
 
-    # def update_train_configs(self, args):
-    #     self.gpu_id = args.gpu_id
+    def update_train_configs(self, args):
+        self.gpu_id = args.gpu_id
+        self.ans_net_lay = args.ans_net_lay
+        self.space_name = args.space_name
+        if self.exp_id == '':
+            self.exp_id = self.space_name
     #     self.finetune = args.finetune
     #     self.answer_embedding = args.answer_embedding
     #     self.name = args.name
@@ -177,7 +138,7 @@ class cfg():
     #     self.freeze_w2v = args.freeze_w2v
     #     self.loss_temperature = args.loss_temperature
     #     self.ZSL = args.ZSL
-    #     self.ans_net_lay = args.ans_net_lay
+
     #     self.matching_space = args.matching_space
     #     self.now_test = args.now_test
     #     self.save_model = args.save_model
