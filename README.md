@@ -42,3 +42,19 @@ TransE 모델을 사용. Default Dim: 300
 
 - transe_xxx.ckpt : 학습된 KGE 모델
   - 1-1.txt, 1-n.txt, n-1.txt, n-n.txt, type_constrain.txt는 OpenKE 학습 파일
+
+### TODO
+
+현재 raw file을 먼저 읽게 되어 있음. 중간 파일을 저장하는 구문을 만들었지만, raw file에서의 예외들이 있어서, 정상동작되지 않음.
+
+## 2. Train
+
+```
+python main.py
+```
+
+## 3. Evaluation
+
+```
+python eval.py
+```
