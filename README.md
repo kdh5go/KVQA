@@ -21,27 +21,9 @@ Knowledge Graph를 이용한 관광 데이터 VQA
 python data/prepare_data.py --kge_dim 300
 ```
 
-TransE 모델을 사용. Default Dim: 300
+- TransE 모델을 사용. Default Dim: 300
 
-### output files
-
-- entity2id.txt : Triple, QA에 등장하는 모든 entity에 대해 id 부여
-  - format : entity id count
-- relation2id.txt : Triple, QA에 등장하는 모든 relation에 대해 id 부여
-  - format : relation id count
-- answer2id.txt : QA에 등장하는 모든 answer에 대해 id 부여
-  - format : answer id count entityid
-- word2id.txt : QA에 등장하는 모든 질문의 단어에 대해 id 부여
-  - format : word id count
-- KGE_train2id.txt : Triple id화
-  - format : e1 e2 r (OpenKE 포맷)
-- Fact_train2id.txt : QA의 Fact id화
-  - format : e1 e2 r
-- Question_train2id.txt : QA의 Question id화
-- Answer_train2id.txt : QA의 Answer id화
-
-- transe_xxx.ckpt : 학습된 KGE 모델
-  - 1-1.txt, 1-n.txt, n-1.txt, n-n.txt, type_constrain.txt는 OpenKE 학습 파일
+- [output file 설명](./data/README.md)
 
 ### TODO
 
@@ -50,11 +32,24 @@ TransE 모델을 사용. Default Dim: 300
 ## 2. Train
 
 ```
-python main.py
+./train.sh
 ```
+
+- configs.py 내 파라미터 확인
+  - self.KVQA.question_max_length = prepare_data.py로 부터 구해지는 질문 단어 개수 + n
+  - self.KVQA.num_entity = data/KVQA/entity2id.txt 의 카운트
+  - self.KVQA.num_relation = data/KVQA/relation2id.txt 의 카운트
+- Default Model
+  - Fusion model : MLP
+  - Answer model
+    - Answer space : CLS
+    - Relation space : CLS
 
 ## 3. Evaluation
 
 ```
 python eval.py
 ```
+
+- Accuracy(All): 전체 answer candidate 중에서 Top 1이 정답인 경우
+- Accuracy(5 choices): 5지선다, (정답은 무조건 0번, 나머지 겹치지 않게 random selected)
