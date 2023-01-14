@@ -15,6 +15,8 @@ class MLP(nn.Module):
         embedding_requires_grad = not args.freeze_w2v
         question_features = 16
         vision_features = args.visual_feature_dim
+        assert args.hidden_size % 60 == 0 or args.hidden_size % 64 == 0
+        self.groups = 60 if args.hidden_size % 60 == 0 else 64
 
         # self.text = BagOfWordsMLPProcessor(
         self.text = BagOfWordsProcessor(
@@ -29,7 +31,7 @@ class MLP(nn.Module):
             mid_features=args.hidden_size,
             out_features=args.embedding_size,
             drop=0.5,
-            groups=60,
+            groups=self.groups,
         )
 
         for m in self.modules():
@@ -45,6 +47,7 @@ class MLP(nn.Module):
 
         combined = torch.cat([v, q], dim=1)
         embedding = self.mlp(combined)
+        # embedding = F.normalize(embedding, p=2, dim=1)
         return embedding
 
 

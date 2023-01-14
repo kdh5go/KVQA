@@ -11,12 +11,16 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         ans_net_list = ["GroupMLP", "GroupMLP_1lay", "GroupMLP_2lay"]
         ans_net = ans_net_list[args.ans_net_lay]
+
+        assert args.hidden_size % 60 == 0 or args.hidden_size % 64 == 0
+        self.groups = 60 if args.hidden_size % 60 == 0 else 64
+
         self.mlp = getattr(FC, ans_net)(
-            in_features=args.KG_feature_dim,  # fan
+            in_features=args.KG_feature_dim,
             mid_features=args.hidden_size,
-            out_features=args.embedding_size,  # fan
+            out_features=args.embedding_size,
             drop=0.0,
-            groups=60,  # 64
+            groups=self.groups,
         )
 
         for m in self.modules():
