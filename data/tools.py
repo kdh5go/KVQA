@@ -111,7 +111,8 @@ def extract_facts_in_QA(annotations, ent_count, rel_count):
 
 def load_facts(data_root):
     fact_set = {'Triple': [], 'QA': []}
-    qa_set = {'question_tokens': [], 'answer': []}
+    qa_set = {'question_tokens': [], 'answer': [],
+              'image_filename': [], 'captions': []}
 
     extract_facts = {'QA': extract_facts_in_QA,
                      'Triple': extract_facts_in_Triple}
@@ -140,11 +141,15 @@ def load_facts(data_root):
 
                         if data_type == 'QA':
                             annotations = data['annotations']['question']
+                            image_filename = data['imageInfo']['filename']
+                            captions = data['imageInfo']['caption_info']
                             q_tokens, answers = extract_QA(
                                 annotations, word_count, ans_count)
                             for q, a in zip(q_tokens, answers):
                                 qa_set['question_tokens'].append(q)
                                 qa_set['answer'].append(a)
+                                qa_set['image_filename'].append(image_filename)
+                                qa_set['captions'].append(captions)
                         else:
                             annotations = data['triples']
 
@@ -314,16 +319,13 @@ def make_train_files(output_dir, fact_set, qa_set, entity2id, relation2id, answe
                 # for k in answer2id.keys():
                 #     if k in ans or ans in k:
                 #         print(k)
+    out_fn = os.path.join(output_dir, 'imageInfo_train.pkl')
+    imageInfo = {}
+    imageInfo['image_filename'] = qa_set['image_filename']
+    imageInfo['captions'] = qa_set['captions']
 
-    # out_fn = os.path.join(output_dir, 'Question_train2id.txt')
-    # with open(out_fn, 'w') as f:
-    # 	num = len(q_tokens)
-    # 	print('Question num :', num)
-    # 	f.write('{}\n'.format(num))
-    # 	for q_t in q_tokens:
-    # 		for
-    # 		f.write('{}\t{}\t{}\n'.format(
-    # 			entity2id[fact[0]], entity2id[fact[1]], relation2id[fact[2]]))
+    with open(out_fn, 'wb') as fw:
+        pickle.dump(imageInfo, fw)
 
 
 def generate_addictive_files(output_dir):
