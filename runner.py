@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from pprint import pprint
 import copy
 from tqdm import tqdm
@@ -8,12 +9,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-from torchlight import initialize_exp, set_seed, snapshot, get_dump_path, show_params
+from torchlight import get_dump_path
 from data.dataloader import KVQA_Dataset
 from model.answer_mlp import MLP
 from model import SimpleClassifier
 from model import fusion_net
-from utils import freeze_layer, Metrics, cosine_sim, instance_bce_with_logits
+from utils import freeze_layer, Metrics, instance_bce_with_logits
 
 
 class Runner:
@@ -40,8 +41,11 @@ class Runner:
 
         # get the fusion_model and answer_net
         self._model_choice(args)
-        # self._load_model(self.fusion_model, "fusion")
-        # self._load_model(self.answer_net, "embedding")
+        self._load_model(self.fusion_model, "fusion")
+        self._load_model(self.answer_net, "embedding")
+        # for param_tensor in self.fusion_model.state_dict():
+        #     print(param_tensor, "\t", self.fusion_model.state_dict()[
+        #           param_tensor])
 
         # self.best_answer_net = self.answer_net.clone()
 
@@ -159,7 +163,8 @@ class Runner:
                 self.dataset.KGE_answer).cuda()
         else:
             KGE_space = self.dataset.rel_embeddings.cuda()
-
+        cc = 0
+        max_dist = 0
         for poi, question_features, answers, answers_onehot, q_len in tq:
             poi = Variable(poi.float()).cuda()
             question_features = Variable(question_features).cuda()
@@ -190,7 +195,6 @@ class Runner:
                 predicts = predicts.squeeze()
                 # predicts = predicts.to(torch.float64)
                 predicts = -self.log_softmax(predicts).to(torch.float64)
-                a = 1
 
                 # answer_embedding = self.answer_net(KGE_space)
 
@@ -241,13 +245,15 @@ class Runner:
     def _save_model(self, model, function):
         assert function == "fusion" or function == "embedding"
         target = self.args.space_name
+        dim = self.args.KG_feature_dim
         model_name = type(model).__name__
         save_path = os.path.join(self.args.model_save_path, function)
         os.makedirs(save_path, exist_ok=True)
         save_path = os.path.join(
-            save_path, f'{target}_{model_name}.pkl')
+            save_path, f'{target}_{model_name}_{dim}.pkl')
 
-        torch.save(model.state_dict(), save_path)
+        # torch.save(model.state_dict(), save_path)
+        print(save_path)
         return save_path
 
     def _load_model(self, model, function):
@@ -255,10 +261,11 @@ class Runner:
 
         # support entity mapping
         target = self.args.space_name
+        dim = self.args.KG_feature_dim
         model_name = type(model).__name__
         save_path = os.path.join(self.args.model_save_path, function)
         save_path = os.path.join(
-            save_path, f'{target}_{model_name}.pkl')
+            save_path, f'{target}_{model_name}_{dim}.pkl')
 
         model.load_state_dict(torch.load(save_path))
         print(f"loading {function} model done!")
