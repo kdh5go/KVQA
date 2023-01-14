@@ -39,9 +39,9 @@ class cfg():
         # model settings
         self.fusion_model = 'MLP'
         self.freeze_w2v = False
-        self.answer_model = 'MLP'
+        self.answer_model = 'CLS'
         self.answer_model_rel = 'CLS'
-        self.answer_model_ans = 'MLP'
+        self.answer_model_ans = 'CLS'
         self.ans_net_lay = 0
 
         self.KVQA = edict()
@@ -51,13 +51,16 @@ class cfg():
         self.KVQA.word2id_path = './data/KVQA/word2id.txt'
         self.KVQA.answer2id_path = './data/KVQA/answer2id.txt'
         self.KVQA.KG2id_path = './data/KVQA/KGE_train2id.txt'
-        self.KVQA.entity2id_path = './data/KVQA/entity2id.txt'
+        self.KVQA.imageInfo_path = './data/KVQA/imageInfo_train.pkl'
+
         self.KVQA.question_max_length = 13
+        self.KVQA.num_entity = 337612
+        self.KVQA.num_relation = 124
 
         # train params
         self.TRAIN = edict()
-        self.TRAIN.epochs = 6000
-        self.TRAIN.batch_size = 512  # 128
+        self.TRAIN.epochs = 200
+        self.TRAIN.batch_size = 512  # 512
         self.TRAIN.lr = 1e-3  # default Adam lr 1e-3
         self.TRAIN.CosineAnnealing_Tmax = 50
         self.TRAIN.CosineAnnealing_Tmult = 2
@@ -74,9 +77,9 @@ class cfg():
     def get_args(self):
         parser = argparse.ArgumentParser()
         parser.add_argument('--gpu_id', default=0, type=int)
-        parser.add_argument("--ans_net_lay", default=0,
-                            type=int, choices=[0, 1, 2])
-        parser.add_argument('--space_name', default='relation',
+        parser.add_argument('--answer_model', default='CLS',
+                            choices=['MLP', 'CLS'])
+        parser.add_argument('--space_name', default='answer',
                             choices=['relation', 'answer'])
         # parser.add_argument('--finetune', action='store_true')
         # parser.add_argument('--batch_size', default=128, type=int)
@@ -123,7 +126,7 @@ class cfg():
 
     def update_train_configs(self, args):
         self.gpu_id = args.gpu_id
-        self.ans_net_lay = args.ans_net_lay
+        self.answer_model = args.answer_model
         self.space_name = args.space_name
         if self.exp_id == '':
             self.exp_id = self.space_name
