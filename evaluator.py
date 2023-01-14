@@ -41,7 +41,12 @@ class Evaluator:
         self._load_model(self.fusion_model, "fusion", 'relation', 'MLP')
         self._load_model(self.answer_net, "embedding", 'relation', 'CLS')
         self._load_model(self.fusion_model, "fusion", 'answer', 'MLP')
-        self._load_model(self.answer_net, "embedding", 'answer', 'MLP')
+        self._load_model(self.answer_net, "embedding", 'answer', 'CLS')
+        # print("Model's state_dict:")
+
+        # for param_tensor in self.fusion_model['answer'].state_dict():
+        #     print(param_tensor, "\t", self.fusion_model['answer'].state_dict()[
+        #           param_tensor])
 
         self.KGE_space = torch.from_numpy(self.dataset.KGE_answer).cuda()
 
@@ -80,19 +85,30 @@ class Evaluator:
 
             fusion_embedding = self.fusion_model['answer'](
                 poi, question_features, q_len)
-            fusion_embedding_ = fusion_embedding.unsqueeze(dim=0)
-            KGE_space_ = self.KGE_space.unsqueeze(dim=0)
-            predicts = torch.cdist(fusion_embedding_, KGE_space_, p=2)
-            predicts = predicts.squeeze()
+
+            if self.args.answer_model_ans == 'CLS':
+                # TODO: Normalization?
+                predicts = self.answer_net['answer'](fusion_embedding)
+                # arg_predicts = torch.argmax(
+                #     predicts, dim=1).detach().cpu().numpy()
+                # arg_answer = torch.argmax(
+                #     answers_onehot, dim=1).detach().cpu().numpy()
+                # a = 1
+            else:
+                # Mapping-based methods
+                fusion_embedding_ = fusion_embedding.unsqueeze(dim=0)
+                KGE_space_ = self.KGE_space.unsqueeze(dim=0)
+                predicts = torch.cdist(fusion_embedding_, KGE_space_, p=2)
+                predicts = predicts.squeeze()
+                predicts = -predicts
             predicts = predicts.detach().cpu().numpy()
+
             max_dist += np.average(np.min(predicts, axis=1))
-            # argsort = np.argsort(predicts, axis=1)
-            # argsort = argsort[:, 1]
-            # max_dist2 += np.average(predicts[:, argsort])
 
             cc += 1
 
-            final_predicts = -predicts + mask
+            # final_predicts = -predicts + mask
+            final_predicts = predicts + mask
             final_answers = np.argmax(final_predicts, axis=1)
             correct += (final_answers == answers_id).sum()
             count += len(final_answers)
@@ -104,10 +120,10 @@ class Evaluator:
 
             final_choice = np.argmax(candidates, axis=1)
             correct_choice += (final_choice == 0).sum()
-        print(max_dist / cc)
-        print(max_dist2 / cc)
-        print(correct / count)
-        print(correct_choice / count)
+        # print(max_dist / cc)
+        # print(max_dist2 / cc)
+        print('Accuracy(All):', correct / count)
+        print('Accuracy(5 choices):', correct_choice / count)
 
     def _model_choice(self, args, space):
         assert args.fusion_model in ['SAN', 'MLP']
@@ -138,12 +154,12 @@ class Evaluator:
             model_name = 'SimpleClassifier'
         else:
             model_name = model_type
-
+        dim = self.args.KG_feature_dim
         # support entity mapping
         save_path = os.path.join(self.args.model_save_path, function)
         save_path = os.path.join(
-            save_path, f'{space}_{model_name}.pkl')
+            save_path, f'{space}_{model_name}_{dim}.pkl')
 
-        model[space].load_state_dict(torch.load(save_path))
-        print(f"loading {function} model done!")
+        model[space].load_state_dict(torch.load(save_path), strict=True)
+        print(f"loading {save_path} model done!")
         model[space].eval().cuda()
