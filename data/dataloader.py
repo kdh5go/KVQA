@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 import torch.utils.data as data
 from .OpenKE.module.model import TransE
 
@@ -14,11 +15,12 @@ class KVQA_Dataset(data.Dataset):
         self.answerid2kgeid = {}
         self.num_tokens = 234
         self.num_answers = 0
+        self.imageInfo = {}
 
         self.load_data()
         self.kge_model = TransE(
-            ent_tot=337941,  # len(ent_count), # 337941
-            rel_tot=124,  # len(rel_count), # 124
+            ent_tot=self.args.KVQA.num_entity,  # len(ent_count), # 337941
+            rel_tot=self.args.KVQA.num_relation,  # len(rel_count), # 124
             dim=self.args.KG_feature_dim, p_norm=1, norm_flag=True)
         self.kge_model.load_checkpoint(args.kge_ckpt)
         self.ent_embeddings = self.kge_model.ent_embeddings.weight
@@ -66,8 +68,14 @@ class KVQA_Dataset(data.Dataset):
                 else:
                     line = line.strip().split('\t')
                     self.answer2id.append(line)
+        with open(self.args.KVQA.imageInfo_path, 'rb') as fr:
+            self.imageInfo = pickle.load(fr)
 
     def __getitem__(self, item):
+
+        image_filename = self.imageInfo['image_filename'][item]
+        captions = self.imageInfo['captions'][item]
+
         poi_id = int(self.facts[item][0])
         poi = self.ent_embeddings[poi_id].detach().numpy()
         question = self.questions[item][0].split(',')
@@ -105,13 +113,12 @@ class KVQA_EvalDataset(data.Dataset):
         self.kgeid2answerid = {}
         self.num_tokens = 234
         self.num_answers = 0
-        self.num_entity = 337941
+        self.imageInfo = {}
 
         self.load_data()
-        self.load_entity2id()
         self.kge_model = TransE(
-            ent_tot=self.num_entity,  # len(ent_count), # 337941
-            rel_tot=124,  # len(rel_count), # 124
+            ent_tot=self.args.KVQA.num_entity,  # len(ent_count), # 337941
+            rel_tot=self.args.KVQA.num_relation,  # len(rel_count), # 124
             dim=self.args.KG_feature_dim, p_norm=1, norm_flag=True)
         self.kge_model.load_checkpoint(args.kge_ckpt)
         self.ent_embeddings = self.kge_model.ent_embeddings.weight
@@ -128,16 +135,6 @@ class KVQA_EvalDataset(data.Dataset):
         self.choices = []
         self.load_KG_facts()
         self.generate_choices()
-
-    def load_entity2id(self):
-        with open(self.args.KVQA.entity2id_path, "r") as f:
-            for i, line in enumerate(f):
-                if i == 0:
-                    self.num_entity = int(line)
-                else:
-                    break
-                    # line = line.strip().split('\t')
-                    # self.answer2id.append(line)
 
     def generate_choices(self):
         num_answers = len(self.answer2id)
@@ -205,8 +202,14 @@ class KVQA_EvalDataset(data.Dataset):
                 else:
                     line = line.strip().split('\t')
                     self.answer2id.append(line)
+        with open(self.args.KVQA.imageInfo_path, 'rb') as fr:
+            self.imageInfo = pickle.load(fr)
 
     def __getitem__(self, item):
+
+        image_filename = self.imageInfo['image_filename'][item]
+        captions = self.imageInfo['captions'][item]
+
         poi_id = int(self.facts[item][0])
         poi = self.ent_embeddings[poi_id].detach().numpy()
         question = self.questions[item][0].split(',')
